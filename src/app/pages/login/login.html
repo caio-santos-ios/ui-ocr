@@ -1,0 +1,79 @@
+<div class="login-split-page">
+
+  <div class="login-image-side">
+    <img src="assets/foto-login.jpg" alt="Sistema Odontologia" class="login-bg-img" />
+    <div class="image-overlay">
+      <div class="overlay-content">
+        <h2 class="overlay-title">Sistema Odontologia</h2>
+        <p class="overlay-subtitle">Controle operacional e gestão integrada de centros de custo para o agronegócio.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="login-form-side">
+    <div class="form-wrapper">
+      <div class="auth-header">
+        <h1 class="auth-title">Sistema Odontologia</h1>
+        <p class="auth-subtitle">Acesso ao Painel de Gestão</p>
+      </div>
+
+      <form (ngSubmit)="onSubmit()" class="auth-form">
+        <div class="form-group">
+          <label for="email" class="form-label">E-mail</label>
+          <div class="input-with-icon">
+            <i class="fa-solid fa-envelope input-icon"></i>
+            <input
+              type="email"
+              id="email"
+              class="form-control with-icon"
+              placeholder="seuemail@fazenda.com"
+              [(ngModel)]="email"
+              name="email"
+              required
+              autocomplete="email"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="label-row">
+            <label for="password" class="form-label">Senha</label>
+            <a routerLink="/reset-password" class="forgot-link">Esqueceu a senha?</a>
+          </div>
+          <div class="password-input-wrapper input-with-icon">
+            <i class="fa-solid fa-lock input-icon"></i>
+            <input
+              [type]="showPassword ? 'text' : 'password'"
+              id="password"
+              class="form-control with-icon"
+              placeholder="Digite sua senha"
+              [(ngModel)]="password"
+              name="password"
+              required
+            />
+            <button
+              type="button"
+              class="btn-toggle-pwd"
+              (click)="toggleShowPassword()"
+              title="Exibir/Ocultar senha"
+            >
+              <i class="fa-solid" [ngClass]="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-submit" [disabled]="isLoading">
+          <i class="fa-solid fa-right-to-bracket" *ngIf="!isLoading"></i>
+          <i class="fa-solid fa-spinner fa-spin" *ngIf="isLoading"></i>
+          <span>{{ isLoading ? 'Entrando...' : 'Entrar' }}</span>
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        <span class="security-badge">
+          <i class="fa-solid fa-shield-halved"></i> Conexão Segura & Criptografada
+        </span>
+      </div>
+    </div>
+  </div>
+</div>

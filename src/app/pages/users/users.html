@@ -1,0 +1,137 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Gestão de Usuários</h1>
+      <p class="page-subtitle">Moderação, permissões e indicadores de risco de clientes e profissionais</p>
+    </div>
+  </div>
+
+  <div class="card filters-card">
+    <div class="filters-wrap">
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input
+          type="text"
+          class="form-control"
+          placeholder="Buscar por nome, e-mail ou telefone..."
+          [(ngModel)]="searchQuery"
+        />
+      </div>
+
+      <div class="status-filter-group">
+        <button class="filter-chip" [class.active]="filterRole === 'all'" (click)="filterRole = 'all'">
+          Todos ({{ users.length }})
+        </button>
+        <button class="filter-chip" [class.active]="filterRole === 'customer'" (click)="filterRole = 'customer'">
+          Clientes
+        </button>
+        <button class="filter-chip" [class.active]="filterRole === 'professional'" (click)="filterRole = 'professional'">
+          Profissionais
+        </button>
+        <button class="filter-chip" [class.active]="filterRole === 'admin'" (click)="filterRole = 'admin'">
+          Administradores
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <app-loading [isLoading]="isLoading"></app-loading>
+
+  <div class="card" *ngIf="!isLoading">
+    <div class="table-responsive desktop-table-view">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Usuário</th>
+            <th>Tipo / Papel</th>
+            <th>Contato</th>
+            <th>Agendamentos</th>
+            <th>Índice de Risco</th>
+            <th>Status</th>
+            <th>Data Cadastro</th>
+            <th style="text-align: right;">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let user of filteredList">
+            <td>
+              <div class="user-cell">
+                <div class="avatar-circle">{{ user.name[0] }}</div>
+                <div>
+                  <div class="user-cell-name">{{ user.name }}</div>
+                  <div class="user-cell-sub">{{ user.email }}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="role-badge" [ngClass]="user.role">
+                <i class="fa-solid" [ngClass]="user.role === 'admin' ? 'fa-user-shield' : user.role === 'professional' ? 'fa-user-tie' : 'fa-user'"></i>
+                {{ user.roleLabel }}
+              </span>
+            </td>
+            <td>{{ user.phone }}</td>
+            <td><strong>{{ user.totalOrders }}</strong> pedidos</td>
+            <td>
+              <span class="risk-badge" [ngClass]="user.riskScore">
+                <i class="fa-solid fa-shield"></i>
+                {{ user.riskScore === 'low' ? 'Baixo' : user.riskScore === 'medium' ? 'Médio' : 'Alto' }}
+              </span>
+            </td>
+            <td>
+              <span class="status-badge" [ngClass]="user.status === 'active' ? 'active' : 'inactive'">
+                {{ user.statusLabel }}
+              </span>
+            </td>
+            <td>{{ global.formatDate(user.createdAt) }}</td>
+            <td style="text-align: right;">
+              <button
+                *ngIf="user.role !== 'admin'"
+                class="btn-icon"
+                [style.color]="user.status === 'blocked' ? 'var(--status-active)' : '#ef4444'"
+                (click)="toggleBlock(user)"
+                [title]="user.status === 'blocked' ? 'Desbloquear' : 'Bloquear'"
+              >
+                <i class="fa-solid" [ngClass]="user.status === 'blocked' ? 'fa-lock-open' : 'fa-ban'"></i>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mobile-cards-view">
+      <div class="mobile-data-card" *ngFor="let user of filteredList">
+        <div class="mobile-card-header">
+          <div>
+            <strong>{{ user.name }}</strong>
+            <div style="font-size: 12px; color: var(--text-muted);">{{ user.email }}</div>
+          </div>
+          <span class="role-badge" [ngClass]="user.role">{{ user.roleLabel }}</span>
+        </div>
+        <div class="mobile-card-body">
+          <div class="mobile-card-field">
+            <span class="mobile-card-field-label">Telefone</span>
+            <span class="mobile-card-field-value">{{ user.phone }}</span>
+          </div>
+          <div class="mobile-card-field">
+            <span class="mobile-card-field-label">Pedidos</span>
+            <span class="mobile-card-field-value">{{ user.totalOrders }}</span>
+          </div>
+          <div class="mobile-card-field">
+            <span class="mobile-card-field-label">Status</span>
+            <span class="mobile-card-field-value">{{ user.statusLabel }}</span>
+          </div>
+          <div class="mobile-card-field">
+            <span class="mobile-card-field-label">Risco</span>
+            <span class="mobile-card-field-value">{{ user.riskScore }}</span>
+          </div>
+        </div>
+        <div class="mobile-card-actions" *ngIf="user.role !== 'admin'">
+          <button class="btn-secondary btn-sm" (click)="toggleBlock(user)">
+            {{ user.status === 'blocked' ? 'Desbloquear Usuário' : 'Bloquear Usuário' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

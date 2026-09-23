@@ -1,0 +1,413 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Sistema Odontologia - Visão Geral</h1>
+      <p class="page-subtitle">Acompanhamento dos centros de custo, estruturas de custeio e contas de usuário</p>
+    </div>
+    <div class="header-actions">
+      <a routerLink="/cost-centers" class="btn btn-primary">
+        <i class="fa-solid fa-sitemap"></i>
+        <span>Gerenciar Centros de Custo</span>
+      </a>
+    </div>
+  </div>
+
+  <app-loading *ngIf="isLoading" [isLoading]="isLoading"></app-loading>
+
+  <div class="kpi-grid" *ngIf="!isLoading">
+    <div class="kpi-card gold-border">
+      <div class="kpi-icon-wrap blue-icon">
+        <i class="fa-solid fa-folder"></i>
+      </div>
+      <div class="kpi-data">
+        <span class="kpi-label">Grupos</span>
+        <h3 class="kpi-value">{{ stats.totalGroups }}</h3>
+        <span class="kpi-subtext">Nível 1 (Principal)</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon-wrap amber-icon">
+        <i class="fa-solid fa-folder-tree"></i>
+      </div>
+      <div class="kpi-data">
+        <span class="kpi-label">SubGrupos</span>
+        <h3 class="kpi-value">{{ stats.totalSubGroups }}</h3>
+        <span class="kpi-subtext">Nível 2 (Sub-estruturas)</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon-wrap purple-icon">
+        <i class="fa-solid fa-tags"></i>
+      </div>
+      <div class="kpi-data">
+        <span class="kpi-label">SubCentros</span>
+        <h3 class="kpi-value">{{ stats.totalSubCostCenters }}</h3>
+        <span class="kpi-subtext">Nível 3 (Opcional)</span>
+      </div>
+    </div>
+
+    <div class="kpi-card green-border">
+      <div class="kpi-icon-wrap green-icon">
+        <i class="fa-solid fa-coins"></i>
+      </div>
+      <div class="kpi-data">
+        <span class="kpi-label">Centros de Custo</span>
+        <h3 class="kpi-value">{{ stats.totalCostCenters }}</h3>
+        <span class="kpi-subtext">Lançamentos finais</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="financial-section" *ngIf="!isLoading">
+    <div class="financial-header-card">
+      <div class="financial-header-info">
+        <div class="financial-badge">
+          <i class="fa-solid fa-calculator"></i>
+          <span>Gestão Financeira Gerencial Agrícola</span>
+        </div>
+        <h2 class="section-title">5. Indicadores Econômicos e Financeiros</h2>
+        <p class="section-subtitle">Fórmulas e apuração de margens calculadas sobre os centros de custo e a receita da safra</p>
+      </div>
+      <div class="revenue-input-card">
+        <label for="grossRevenueInput" class="revenue-label">
+          <i class="fa-solid fa-wheat-awn"></i> Receita Bruta da Safra (R$)
+        </label>
+        <div class="revenue-input-wrapper">
+          <span class="currency-prefix">R$</span>
+          <input
+            id="grossRevenueInput"
+            type="number"
+            class="revenue-input"
+            [ngModel]="grossRevenue"
+            (ngModelChange)="onGrossRevenueChange($event)"
+            placeholder="0,00"
+            min="0"
+            step="1000"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-grid indicators-grid" *ngIf="indicators">
+      <div class="kpi-card indicator-card">
+        <div class="kpi-icon-wrap amber-icon">
+          <i class="fa-solid fa-tractor"></i>
+        </div>
+        <div class="kpi-data">
+          <div class="kpi-top-row">
+            <span class="kpi-label">COE</span>
+            <span class="indicator-tag">Macro Grupo 1</span>
+          </div>
+          <h3 class="kpi-value">{{ indicators.coe | currency:'BRL':'symbol':'1.2-2' }}</h3>
+          <span class="kpi-subtext">Custos Operacionais Diretos</span>
+        </div>
+      </div>
+
+      <div class="kpi-card indicator-card">
+        <div class="kpi-icon-wrap blue-icon">
+          <i class="fa-solid fa-layer-group"></i>
+        </div>
+        <div class="kpi-data">
+          <div class="kpi-top-row">
+            <span class="kpi-label">COT</span>
+            <span class="indicator-tag">Grupo 1 + Grupo 2</span>
+          </div>
+          <h3 class="kpi-value">{{ indicators.cot | currency:'BRL':'symbol':'1.2-2' }}</h3>
+          <span class="kpi-subtext">Custos Operacionais Totais</span>
+        </div>
+      </div>
+
+      <div class="kpi-card indicator-card" [class.positive-border]="indicators.margemBruta >= 0" [class.negative-border]="indicators.margemBruta < 0">
+        <div class="kpi-icon-wrap" [class.green-icon]="indicators.margemBruta >= 0" [class.red-icon]="indicators.margemBruta < 0">
+          <i class="fa-solid fa-chart-line"></i>
+        </div>
+        <div class="kpi-data">
+          <div class="kpi-top-row">
+            <span class="kpi-label">Margem Bruta</span>
+            <span class="percent-badge" [class.percent-pos]="indicators.margemBruta >= 0" [class.percent-neg]="indicators.margemBruta < 0">
+              {{ indicators.margemBrutaPercent | number:'1.1-2' }}%
+            </span>
+          </div>
+          <h3 class="kpi-value" [class.positive-text]="indicators.margemBruta >= 0" [class.negative-text]="indicators.margemBruta < 0">
+            {{ indicators.margemBruta | currency:'BRL':'symbol':'1.2-2' }}
+          </h3>
+          <span class="kpi-subtext">Receita Bruta - COE</span>
+        </div>
+      </div>
+
+      <div class="kpi-card indicator-card" [class.positive-border]="indicators.ebitdaAgricola >= 0" [class.negative-border]="indicators.ebitdaAgricola < 0">
+        <div class="kpi-icon-wrap" [class.green-icon]="indicators.ebitdaAgricola >= 0" [class.red-icon]="indicators.ebitdaAgricola < 0">
+          <i class="fa-solid fa-seedling"></i>
+        </div>
+        <div class="kpi-data">
+          <div class="kpi-top-row">
+            <span class="kpi-label">EBITDA Agrícola</span>
+            <span class="percent-badge" [class.percent-pos]="indicators.ebitdaAgricola >= 0" [class.percent-neg]="indicators.ebitdaAgricola < 0">
+              {{ indicators.ebitdaPercent | number:'1.1-2' }}%
+            </span>
+          </div>
+          <h3 class="kpi-value" [class.positive-text]="indicators.ebitdaAgricola >= 0" [class.negative-text]="indicators.ebitdaAgricola < 0">
+            {{ indicators.ebitdaAgricola | currency:'BRL':'symbol':'1.2-2' }}
+          </h3>
+          <span class="kpi-subtext">Receita Bruta - COT</span>
+        </div>
+      </div>
+
+      <div class="kpi-card indicator-card purple-border">
+        <div class="kpi-icon-wrap purple-icon">
+          <i class="fa-solid fa-water"></i>
+        </div>
+        <div class="kpi-data">
+          <div class="kpi-top-row">
+            <span class="kpi-label">FCOL</span>
+            <span class="indicator-tag">EBITDA - CAPEX</span>
+          </div>
+          <h3 class="kpi-value" [class.positive-text]="indicators.fcol >= 0" [class.negative-text]="indicators.fcol < 0">
+            {{ indicators.fcol | currency:'BRL':'symbol':'1.2-2' }}
+          </h3>
+          <span class="kpi-subtext">Fluxo Caixa Operacional Líquido</span>
+        </div>
+      </div>
+
+      <div class="kpi-card indicator-card delta-card" [class.positive-border]="indicators.deltaCaixaFinal >= 0" [class.negative-border]="indicators.deltaCaixaFinal < 0">
+        <div class="kpi-icon-wrap gold-icon">
+          <i class="fa-solid fa-vault"></i>
+        </div>
+        <div class="kpi-data">
+          <div class="kpi-top-row">
+            <span class="kpi-label">Δ Caixa Final</span>
+            <span class="indicator-tag gold-tag">Resultado Final</span>
+          </div>
+          <h3 class="kpi-value" [class.positive-text]="indicators.deltaCaixaFinal >= 0" [class.negative-text]="indicators.deltaCaixaFinal < 0">
+            {{ indicators.deltaCaixaFinal | currency:'BRL':'symbol':'1.2-2' }}
+          </h3>
+          <span class="kpi-subtext">Variação do Caixa Consolidada</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="indicators-detail-grid" *ngIf="indicators">
+      <div class="card dre-card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">DRE Agrícola (Demonstrativo em Cascata)</h3>
+            <p class="chart-subtitle">Fluxo sequencial das fórmulas financeiras da safra</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="waterfall-list">
+            <div class="waterfall-item positive-item">
+              <div class="waterfall-left">
+                <span class="math-symbol">(+)</span>
+                <span class="waterfall-name">Receita Bruta da Safra</span>
+              </div>
+              <div class="waterfall-right">
+                <span class="waterfall-val">{{ indicators.grossRevenue | currency:'BRL':'symbol':'1.2-2' }}</span>
+                <span class="waterfall-perc">100%</span>
+              </div>
+            </div>
+
+            <div class="waterfall-item minus-item">
+              <div class="waterfall-left">
+                <span class="math-symbol">(-)</span>
+                <span class="waterfall-name">COE (Custos Operacionais Efetivos / Diretos)</span>
+              </div>
+              <div class="waterfall-right">
+                <span class="waterfall-val">{{ indicators.coe | currency:'BRL':'symbol':'1.2-2' }}</span>
+                <span class="waterfall-perc" *ngIf="indicators.grossRevenue > 0">{{ ((indicators.coe / indicators.grossRevenue) * 100) | number:'1.1-2' }}%</span>
+              </div>
+            </div>
+
+            <div class="waterfall-item subtotal-item" [class.pos]="indicators.margemBruta >= 0" [class.neg]="indicators.margemBruta < 0">
+              <div class="waterfall-left">
+                <span class="math-symbol">(=)</span>
+                <span class="waterfall-name font-bold">MARGEM BRUTA</span>
+              </div>
+              <div class="waterfall-right">
+                <span class="waterfall-val font-bold">{{ indicators.margemBruta | currency:'BRL':'symbol':'1.2-2' }}</span>
+                <span class="waterfall-perc font-bold">{{ indicators.margemBrutaPercent | number:'1.1-2' }}%</span>
+              </div>
+            </div>
+
+            <div class="waterfall-item minus-item">
+              <div class="waterfall-left">
+                <span class="math-symbol">(-)</span>
+                <span class="waterfall-name">Custos Operacionais Indiretos (Grupo 2)</span>
+              </div>
+              <div class="waterfall-right">
+                <span class="waterfall-val">{{ (indicators.cot - indicators.coe) | currency:'BRL':'symbol':'1.2-2' }}</span>
+                <span class="waterfall-perc" *ngIf="indicators.grossRevenue > 0">{{ (((indicators.cot - indicators.coe) / indicators.grossRevenue) * 100) | number:'1.1-2' }}%</span>
+              </div>
+            </div>
+
+            <div class="waterfall-item subtotal-item" [class.pos]="indicators.ebitdaAgricola >= 0" [class.neg]="indicators.ebitdaAgricola < 0">
+              <div class="waterfall-left">
+                <span class="math-symbol">(=)</span>
+                <span class="waterfall-name font-bold">EBITDA AGRÍCOLA</span>
+              </div>
+              <div class="waterfall-right">
+                <span class="waterfall-val font-bold">{{ indicators.ebitdaAgricola | currency:'BRL':'symbol':'1.2-2' }}</span>
+                <span class="waterfall-perc font-bold">{{ indicators.ebitdaPercent | number:'1.1-2' }}%</span>
+              </div>
+            </div>
+
+            <div class="waterfall-item minus-item">
+              <div class="waterfall-left">
+                <span class="math-symbol">(-)</span>
+                <span class="waterfall-name">CAPEX Operacional (Investimentos Máquinas / Benfeitorias)</span>
+              </div>
+              <div class="waterfall-right">
+                <span class="waterfall-val">{{ indicators.capex | currency:'BRL':'symbol':'1.2-2' }}</span>
+                <span class="waterfall-perc" *ngIf="indicators.grossRevenue > 0">{{ ((indicators.capex / indicators.grossRevenue) * 100) | number:'1.1-2' }}%</span>
+              </div>
+            </div>
+
+            <div class="waterfall-item subtotal-item" [class.pos]="indicators.fcol >= 0" [class.neg]="indicators.fcol < 0">
+              <div class="waterfall-left">
+                <span class="math-symbol">(=)</span>
+                <span class="waterfall-name font-bold">FCOL (Fluxo de Caixa Operacional Líquido)</span>
+              </div>
+              <div class="waterfall-right">
+                <span class="waterfall-val font-bold">{{ indicators.fcol | currency:'BRL':'symbol':'1.2-2' }}</span>
+                <span class="waterfall-perc font-bold" *ngIf="indicators.grossRevenue > 0">{{ ((indicators.fcol / indicators.grossRevenue) * 100) | number:'1.1-2' }}%</span>
+              </div>
+            </div>
+
+            <div class="waterfall-item minus-item">
+              <div class="waterfall-left">
+                <span class="math-symbol">(-)</span>
+                <span class="waterfall-name">Compromissos Financeiros / Dívidas (Grupo 4 / 6)</span>
+              </div>
+              <div class="waterfall-right">
+                <span class="waterfall-val">{{ indicators.compromissosDividas | currency:'BRL':'symbol':'1.2-2' }}</span>
+                <span class="waterfall-perc" *ngIf="indicators.grossRevenue > 0">{{ ((indicators.compromissosDividas / indicators.grossRevenue) * 100) | number:'1.1-2' }}%</span>
+              </div>
+            </div>
+
+            <div class="waterfall-item minus-item">
+              <div class="waterfall-left">
+                <span class="math-symbol">(-)</span>
+                <span class="waterfall-name">Saídas Não Operacionais (Grupo 5 / 7)</span>
+              </div>
+              <div class="waterfall-right">
+                <span class="waterfall-val">{{ indicators.saidasNaoOperacionais | currency:'BRL':'symbol':'1.2-2' }}</span>
+                <span class="waterfall-perc" *ngIf="indicators.grossRevenue > 0">{{ ((indicators.saidasNaoOperacionais / indicators.grossRevenue) * 100) | number:'1.1-2' }}%</span>
+              </div>
+            </div>
+
+            <div class="waterfall-item minus-item">
+              <div class="waterfall-left">
+                <span class="math-symbol">(-)</span>
+                <span class="waterfall-name">Investimentos Não Operacionais (Grupo 6 / 8)</span>
+              </div>
+              <div class="waterfall-right">
+                <span class="waterfall-val">{{ indicators.investimentosNaoOperacionais | currency:'BRL':'symbol':'1.2-2' }}</span>
+                <span class="waterfall-perc" *ngIf="indicators.grossRevenue > 0">{{ ((indicators.investimentosNaoOperacionais / indicators.grossRevenue) * 100) | number:'1.1-2' }}%</span>
+              </div>
+            </div>
+
+            <div class="waterfall-item final-total-item" [class.pos]="indicators.deltaCaixaFinal >= 0" [class.neg]="indicators.deltaCaixaFinal < 0">
+              <div class="waterfall-left">
+                <span class="math-symbol">(=)</span>
+                <span class="waterfall-name font-extrabold">VARIAÇÃO DO CAIXA FINAL (Δ Caixa)</span>
+              </div>
+              <div class="waterfall-right">
+                <span class="waterfall-val font-extrabold">{{ indicators.deltaCaixaFinal | currency:'BRL':'symbol':'1.2-2' }}</span>
+                <span class="waterfall-perc font-extrabold" *ngIf="indicators.grossRevenue > 0">{{ ((indicators.deltaCaixaFinal / indicators.grossRevenue) * 100) | number:'1.1-2' }}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card groups-breakdown-card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Mapeamento dos Macro Grupos</h3>
+            <p class="chart-subtitle">Classificação dos grupos de custo ativos</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Grupo</th>
+                  <th>Classificação</th>
+                  <th class="text-center">Centros de Custo</th>
+                  <th class="text-right">Total Acumulado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let g of indicators.groups">
+                  <td>
+                    <strong style="font-family: monospace;">{{ g.code }}</strong> - {{ g.name }}
+                  </td>
+                  <td>
+                    <span class="badge badge-group-cat" [attr.data-cat]="g.category">
+                      {{ g.categoryName }}
+                    </span>
+                  </td>
+                  <td class="text-center">{{ g.costCenterCount }}</td>
+                  <td class="text-right font-bold">{{ g.totalValue | currency:'BRL':'symbol':'1.2-2' }}</td>
+                </tr>
+                <tr *ngIf="indicators.groups.length === 0">
+                  <td colspan="4" class="text-center text-muted" style="padding: 24px;">
+                    Nenhum grupo localizado.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-grid" *ngIf="!isLoading">
+    <div class="card chart-card">
+      <div class="card-header">
+        <h3 class="card-title">Distribuição da Estrutura de Custos</h3>
+      </div>
+      <div class="card-body chart-body">
+        <canvas #distributionChart></canvas>
+      </div>
+    </div>
+
+    <div class="card recent-card">
+      <div class="card-header">
+        <h3 class="card-title">Centros de Custo Recentes</h3>
+        <a routerLink="/cost-centers" class="view-all-link">Ver todos</a>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Nome</th>
+                <th>Hierarquia</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let cc of recentCostCenters">
+                <td><strong style="font-family: monospace;">{{ cc.code }}</strong></td>
+                <td>{{ cc.name }}</td>
+                <td>
+                  <span class="badge">{{ cc.groupCode }} &gt; {{ cc.subGroupCode }}</span>
+                </td>
+              </tr>
+              <tr *ngIf="recentCostCenters.length === 0">
+                <td colspan="3" class="text-center text-muted" style="padding: 24px;">
+                  Nenhum centro de custo cadastrado ainda.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

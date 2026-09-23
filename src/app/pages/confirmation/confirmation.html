@@ -1,0 +1,61 @@
+<div class="confirmation-container">
+  <div class="confirmation-card">
+    <div class="brand-header">
+      <h1 class="brand-title">SISTEMA <span class="gold-text">FAZENDA</span></h1>
+    </div>
+
+    <div *ngIf="isLoading" class="state-box loading-box">
+      <div class="spinner"></div>
+      <h2 class="state-title">Validando sua conta</h2>
+      <p class="state-desc">Aguarde um instante enquanto confirmamos seus dados...</p>
+    </div>
+
+    <div *ngIf="!isLoading && isSuccess" class="state-box success-box">
+      <div class="icon-circle success-icon">
+        <i class="fa-solid fa-check"></i>
+      </div>
+      <h2 class="state-title">Conta confirmada com sucesso!</h2>
+      <p class="state-desc">Seu cadastro foi ativado e está pronto para uso.</p>
+
+      <div *ngIf="isApp" class="app-redirect-container">
+        <div class="redirect-info">
+          <i class="fa-solid fa-mobile-screen-button"></i>
+          <span>Redirecionando para o aplicativo em <strong>{{ countdown }}</strong>s...</span>
+        </div>
+        <button class="btn-primary" (click)="openApp()">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          <span>Voltar para o App</span>
+        </button>
+      </div>
+
+      <div *ngIf="!isApp" class="web-redirect-container">
+        <a routerLink="/login" class="btn-primary">
+          <span>Acessar Painel</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </a>
+      </div>
+    </div>
+
+    <div *ngIf="!isLoading && !isSuccess" class="state-box error-box">
+      <div class="icon-circle error-icon">
+        <i class="fa-solid fa-xmark"></i>
+      </div>
+      <h2 class="state-title">Não foi possível confirmar</h2>
+      <p class="state-desc">{{ errorMessage }}</p>
+
+      <div *ngIf="isApp" class="app-redirect-container">
+        <button class="btn-secondary" (click)="openApp()">
+          <i class="fa-solid fa-arrow-left"></i>
+          <span>Voltar para o App</span>
+        </button>
+      </div>
+
+      <div *ngIf="!isApp" class="web-redirect-container">
+        <a routerLink="/login" class="btn-secondary">
+          <i class="fa-solid fa-arrow-left"></i>
+          <span>Ir para o Login</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>

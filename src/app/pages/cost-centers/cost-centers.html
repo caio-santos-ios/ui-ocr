@@ -1,0 +1,1356 @@
+<div class="page-container">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Centros de Custo</h1>
+      <p class="page-subtitle">Estrutura hierárquica: Grupo (1) &rarr; SubGrupo (1.1) &rarr; SubCentro (1.1.1 opcional) &rarr; Centro de Custo (1.1.1.1)</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary btn-history" (click)="openHistoryModal()" title="Histórico de Importações">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span>Histórico</span>
+      </button>
+      <button class="btn btn-import" (click)="openImportModal()" title="Importar planilha (.xlsx, .xls ou .csv)">
+        <i class="fa-solid fa-file-excel"></i>
+        <span>Importar</span>
+      </button>
+      <button class="btn btn-primary" (click)="openCreateGroupModal()">
+        <i class="fa-solid fa-plus"></i>
+        <span>Novo Grupo</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon group-icon">
+        <i class="fa-solid fa-folder"></i>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Grupos</span>
+        <span class="stat-value">{{ counts.groups }}</span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon subgroup-icon">
+        <i class="fa-solid fa-folder-tree"></i>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">SubGrupos</span>
+        <span class="stat-value">{{ counts.subGroups }}</span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon subcc-icon">
+        <i class="fa-solid fa-tags"></i>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">SubCentros (Opcionais)</span>
+        <span class="stat-value">{{ counts.subCostCenters }}</span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon cc-icon">
+        <i class="fa-solid fa-coins"></i>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Centros de Custo</span>
+        <span class="stat-value">{{ counts.costCenters }}</span>
+      </div>
+    </div>
+
+    <div class="stat-card stat-total">
+      <div class="stat-icon total-icon">
+        <i class="fa-solid fa-wallet"></i>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Valor Total Acumulado</span>
+        <span class="stat-value">{{ global.formatCurrency(counts.totalValue) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card toolbar-card">
+    <div class="toolbar-row">
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input
+          type="text"
+          class="form-control"
+          placeholder="Buscar por nome ou código..."
+          [(ngModel)]="searchQuery"
+          (input)="onSearchChange()"
+        />
+      </div>
+
+      <div class="tree-controls">
+        <button class="btn btn-outline btn-sm" (click)="expandAll()" title="Expandir todos os níveis">
+          <i class="fa-solid fa-angles-down"></i> Expandir Tudo
+        </button>
+        <button class="btn btn-outline btn-sm" (click)="collapseAll()" title="Recolher todos os níveis">
+          <i class="fa-solid fa-angles-up"></i> Recolher Tudo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <app-loading [isLoading]="isLoading"></app-loading>
+
+  <div class="card table-card" *ngIf="!isLoading">
+    <div class="table-responsive">
+      <table class="table tree-table">
+        <thead>
+          <tr>
+            <th style="min-width: 380px;">Nome</th>
+            <th style="width: 170px; text-align: right;">Valor</th>
+            <th style="width: 220px; text-align: center;">Data de Última Atualização</th>
+            <th style="width: 280px; text-align: right;">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let item of visibleRows"
+            class="tree-row"
+            [ngClass]="[
+              'level-' + item.level,
+              dragOverTargetId === item.id ? 'drag-target-hover' : '',
+              draggedItem?.id === item.id ? 'is-dragging' : ''
+            ]"
+            [attr.draggable]="item.type === 'costcenter' ? 'true' : null"
+            (dragstart)="onDragStart(item, $event, 'main')"
+            (dragend)="onDragEnd()"
+            (dragover)="onDragOver(item, $event, 'main')"
+            (dragleave)="onDragLeave(item, $event)"
+            (drop)="onDrop(item, $event, 'main')"
+          >
+
+            <td class="name-cell" [style.padding-left.px]="item.level * 28 + 16">
+              <div class="tree-node-wrapper">
+
+                <span
+                  *ngIf="item.type === 'costcenter'"
+                  class="drag-handle"
+                  title="Arraste para mover este Centro de Custo para outro SubGrupo ou SubCentro"
+                >
+                  <i class="fa-solid fa-grip-vertical"></i>
+                </span>
+
+                <button
+                  *ngIf="item.hasChildren"
+                  type="button"
+                  class="toggle-btn"
+                  (click)="toggleExpand(item); $event.stopPropagation()"
+                  [title]="isExpanded(item) ? 'Recolher' : 'Expandir'"
+                >
+                  <i class="fa-solid" [ngClass]="isExpanded(item) ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                </button>
+                <span *ngIf="!item.hasChildren" class="toggle-spacer"></span>
+
+                <span class="code-pill" [ngClass]="{
+                  'group-code': item.type === 'group',
+                  'subgroup-code': item.type === 'subgroup',
+                  'subcc-code': item.type === 'subcostcenter',
+                  'cc-code': item.type === 'costcenter'
+                }">
+                  {{ item.code }}
+                </span>
+
+                <span class="type-badge" [ngClass]="'type-' + item.type">
+                  <i class="fa-solid" [ngClass]="{
+                    'fa-folder': item.type === 'group',
+                    'fa-folder-tree': item.type === 'subgroup',
+                    'fa-tags': item.type === 'subcostcenter',
+                    'fa-coins': item.type === 'costcenter'
+                  }"></i>
+                  <span class="type-text">
+                    {{ item.type === 'group' ? 'Grupo' : item.type === 'subgroup' ? 'SubGrupo' : item.type === 'subcostcenter' ? 'SubCentro' : 'Centro de Custo' }}
+                  </span>
+                </span>
+
+                <span class="node-name" [class.font-bold]="item.type === 'group' || item.type === 'subgroup'">
+                  {{ item.name }}
+                </span>
+              </div>
+            </td>
+
+            <td class="value-cell" style="text-align: right;">
+              <span class="value-display">
+                {{ global.formatCurrency(item.value || 0) }}
+              </span>
+            </td>
+
+            <td class="date-cell" style="text-align: center;">
+              <span class="date-display">
+                <i class="fa-regular fa-clock"></i>
+                {{ global.formatDateTime(item.updatedAt || item.createdAt) }}
+              </span>
+            </td>
+
+            <td class="actions-cell" style="text-align: right;">
+              <div class="actions-wrapper">
+
+                <button
+                  *ngIf="item.type === 'group'"
+                  class="btn-icon add-icon"
+                  (click)="openCreateChildModal(item, 'subgroup')"
+                  title="Adicionar SubGrupo"
+                >
+                  <i class="fa-solid fa-plus"></i>
+                </button>
+
+                <div class="action-dropdown-container" *ngIf="item.type === 'subgroup'" (click)="$event.stopPropagation()">
+                  <button
+                    class="btn-icon add-icon"
+                    (click)="toggleAddMenu(item, $event)"
+                    title="Adicionar SubCentro ou Centro de Custo"
+                  >
+                    <i class="fa-solid fa-plus"></i>
+                  </button>
+                  <div class="action-dropdown-menu" *ngIf="activeAddMenuId === item.id">
+                    <button class="action-dropdown-item" (click)="openCreateChildModal(item, 'subcostcenter'); closeAddMenu()">
+                      <i class="fa-solid fa-tags" style="color: #c084fc;"></i>
+                      <span>SubCentro <small style="opacity: 0.7;">(Opcional)</small></span>
+                    </button>
+                    <button class="action-dropdown-item" (click)="openCreateChildModal(item, 'costcenter-direct'); closeAddMenu()">
+                      <i class="fa-solid fa-coins" style="color: #4ade80;"></i>
+                      <span>Centro de Custo Direto</span>
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  *ngIf="item.type === 'subcostcenter'"
+                  class="btn-icon add-icon"
+                  (click)="openCreateChildModal(item, 'costcenter-under-subcc')"
+                  title="Adicionar Centro de Custo"
+                >
+                  <i class="fa-solid fa-plus"></i>
+                </button>
+
+                <button
+                  *ngIf="item.type === 'costcenter'"
+                  class="btn-icon move-icon"
+                  (click)="openMoveModal(item, 'main')"
+                  title="Mover para outro SubGrupo ou SubCentro"
+                >
+                  <i class="fa-solid fa-arrows-up-down-left-right"></i>
+                </button>
+
+                <div class="crud-actions">
+                  <button class="btn-icon" (click)="openEditModal(item)" title="Editar">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                  <button class="btn-icon delete-icon" (click)="openDeleteModal(item)" title="Excluir">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <tr *ngIf="visibleRows.length === 0">
+            <td colspan="4" class="empty-state">
+              <i class="fa-solid fa-folder-tree"></i>
+              <p *ngIf="searchQuery">Nenhum centro de custo encontrado para a busca "{{ searchQuery }}".</p>
+              <p *ngIf="!searchQuery">Nenhum centro de custo cadastrado. Comece criando um novo Grupo!</p>
+              <button *ngIf="!searchQuery" class="btn btn-primary btn-sm" style="margin-top: 12px;" (click)="openCreateGroupModal()">
+                <i class="fa-solid fa-plus"></i> Cadastrar Primeiro Grupo
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" *ngIf="isModalOpen" (click)="closeModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">
+          {{ modalMode === 'create' ? 'Novo' : 'Editar' }}
+          {{ getTypeLabel(activeTab) }}
+        </h2>
+        <button class="btn-close" (click)="closeModal()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="parent-context-banner" *ngIf="parentContextInfo">
+          <i class="fa-solid fa-diagram-project"></i>
+          <div>
+            <span class="context-label">Item Pai Selecionado:</span>
+            <strong>{{ parentContextInfo }}</strong>
+          </div>
+        </div>
+
+        <div *ngIf="activeTab === 'group'">
+          <div class="form-group">
+            <label class="form-label">Nome do Grupo *</label>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Ex: Despesas Administrativas"
+              [(ngModel)]="groupForm.name"
+            />
+          </div>
+        </div>
+
+        <div *ngIf="activeTab === 'subgroup'">
+          <div class="form-group">
+            <label class="form-label">Grupo Pertencente *</label>
+            <select class="form-control" [(ngModel)]="subGroupForm.groupCode" [disabled]="isParentLocked && modalMode === 'create'">
+              <option value="" disabled>Selecione um Grupo</option>
+              <option *ngFor="let g of allGroups" [value]="g.code">{{ g.code }} - {{ g.name }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nome do SubGrupo *</label>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Ex: Culturas Temporárias"
+              [(ngModel)]="subGroupForm.name"
+            />
+          </div>
+        </div>
+
+        <div *ngIf="activeTab === 'subcostcenter'">
+          <div class="form-group">
+            <label class="form-label">Grupo Pertencente *</label>
+            <select class="form-control" [(ngModel)]="subCostCenterForm.groupCode" [disabled]="isParentLocked && modalMode === 'create'" (change)="subCostCenterForm.subGroupCode = ''">
+              <option value="" disabled>Selecione um Grupo</option>
+              <option *ngFor="let g of allGroups" [value]="g.code">{{ g.code }} - {{ g.name }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">SubGrupo Pertencente *</label>
+            <select class="form-control" [(ngModel)]="subCostCenterForm.subGroupCode" [disabled]="isParentLocked && modalMode === 'create'">
+              <option value="" disabled>Selecione um SubGrupo</option>
+              <option *ngFor="let sg of filteredSubGroupsForForm" [value]="sg.code">{{ sg.code }} - {{ sg.name }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nome do SubCentro *</label>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Ex: Lavoura de Grãos"
+              [(ngModel)]="subCostCenterForm.name"
+            />
+          </div>
+        </div>
+
+        <div *ngIf="activeTab === 'costcenter'">
+          <div class="form-group">
+            <label class="form-label">Grupo Pertencente *</label>
+            <select class="form-control" [(ngModel)]="costCenterForm.groupCode" [disabled]="isParentLocked && modalMode === 'create'" (change)="costCenterForm.subGroupCode = ''; costCenterForm.subCostCenter = ''">
+              <option value="" disabled>Selecione um Grupo</option>
+              <option *ngFor="let g of allGroups" [value]="g.code">{{ g.code }} - {{ g.name }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">SubGrupo Pertencente *</label>
+            <select class="form-control" [(ngModel)]="costCenterForm.subGroupCode" [disabled]="isParentLocked && modalMode === 'create'" (change)="costCenterForm.subCostCenter = ''">
+              <option value="" disabled>Selecione um SubGrupo</option>
+              <option *ngFor="let sg of filteredSubGroupsForForm" [value]="sg.code">{{ sg.code }} - {{ sg.name }}</option>
+            </select>
+          </div>
+
+          <div class="form-group hierarchy-toggle-box" *ngIf="!isParentLocked">
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="hasSubCostCenter" />
+              <span>Vincular a um <strong>SubCentro de Custo</strong> (opcional)?</span>
+            </label>
+            <p class="help-text">Se desmarcado, o Centro de Custo será criado diretamente sob o SubGrupo selecionado.</p>
+          </div>
+
+          <div class="form-group" *ngIf="hasSubCostCenter">
+            <label class="form-label">SubCentro de Custo *</label>
+            <select class="form-control" [(ngModel)]="costCenterForm.subCostCenter" [disabled]="isParentLocked && modalMode === 'create'">
+              <option value="" disabled>Selecione um SubCentro</option>
+              <option *ngFor="let scc of filteredSubCostCentersForForm" [value]="scc.code">{{ scc.code }} - {{ scc.name }}</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Nome do Centro de Custo *</label>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Ex: Talhão 01 - Soja Safra 2026"
+              [(ngModel)]="costCenterForm.name"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="closeModal()" [disabled]="isSaving">Cancelar</button>
+        <button class="btn btn-primary" (click)="saveItem()" [disabled]="isSaving">
+          <i class="fa-solid fa-spinner fa-spin" *ngIf="isSaving"></i>
+          {{ isSaving ? 'Salvando...' : 'Salvar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" *ngIf="isDeleteModalOpen" (click)="closeDeleteModal()">
+    <div class="modal-card delete-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title text-danger">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          Confirmar Exclusão
+        </h2>
+        <button class="btn-close" (click)="closeDeleteModal()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Você tem certeza que deseja excluir o item:</p>
+        <div class="delete-info-box">
+          <strong>{{ itemToDelete?.code }} - {{ itemToDelete?.name }}</strong>
+        </div>
+        <p class="text-muted" style="font-size: 13px; margin-top: 8px;">
+          Esta ação não poderá ser desfeita. Atenção: caso haja itens dependentes sob este nível na hierarquia, eles poderão ficar desvinculados.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="closeDeleteModal()" [disabled]="isSaving">Cancelar</button>
+        <button class="btn btn-danger" (click)="confirmDelete()" [disabled]="isSaving">
+          <i class="fa-solid fa-spinner fa-spin" *ngIf="isSaving"></i>
+          {{ isSaving ? 'Excluindo...' : 'Excluir Definitivamente' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop modal-fullscreen-backdrop" *ngIf="isImportModalOpen" (click)="closeImportModal()">
+    <div class="modal-card import-fullscreen-card" (click)="$event.stopPropagation()">
+
+      <div class="modal-header">
+        <div class="header-title-container">
+          <h2 class="modal-title">
+            <i class="fa-solid fa-file-excel" style="color: #22c55e;"></i>
+            Conferência e Importação de Planilha
+          </h2>
+          <span class="file-tag" *ngIf="importResult?.fileName">
+            <i class="fa-regular fa-file-lines"></i> {{ importResult.fileName }}
+          </span>
+        </div>
+        <button class="btn-close" (click)="closeImportModal()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body import-fullscreen-body">
+
+        <div class="import-upload-section" *ngIf="!importResult">
+          <p class="import-description">
+            Selecione a planilha para importação. O sistema detectará automaticamente as colunas de <strong>descrição</strong> e <strong>valor</strong>, localizará os Centros de Custo correspondentes ou similares e montará a estrutura hierárquica completa para sua conferência.
+          </p>
+
+          <div class="file-dropzone" *ngIf="!selectedFile">
+            <input
+              type="file"
+              id="spreadsheetFileInput"
+              class="file-input-hidden"
+              accept=".xlsx, .xls, .csv"
+              (change)="onFileSelected($event)"
+            />
+            <label for="spreadsheetFileInput" class="dropzone-label">
+              <i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
+              <span class="dropzone-title">Clique para anexar ou arraste a planilha aqui</span>
+              <span class="dropzone-subtitle">Formatos aceitos: .xlsx, .xls ou .csv</span>
+            </label>
+          </div>
+
+          <div class="selected-file-card" *ngIf="selectedFile">
+            <div class="file-info-icon">
+              <i class="fa-solid fa-file-excel"></i>
+            </div>
+            <div class="file-info-details">
+              <span class="file-name">{{ selectedFile.name }}</span>
+              <span class="file-size">{{ (selectedFile.size / 1024).toFixed(1) }} KB</span>
+            </div>
+            <button class="btn-remove-file" (click)="removeSelectedFile()" title="Remover arquivo" [disabled]="isImporting">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="import-preview-container" *ngIf="importResult">
+
+          <div class="import-stats-bar">
+            <div class="import-stat-item">
+              <span class="stat-lbl">Linhas da Planilha</span>
+              <span class="stat-val">{{ importResult.totalRows }}</span>
+            </div>
+            <div class="import-stat-item stat-success">
+              <span class="stat-lbl">Identificados na Base</span>
+              <span class="stat-val">{{ importResult.matchedCount }}</span>
+            </div>
+            <div class="import-stat-item stat-selected">
+              <span class="stat-lbl">Selecionados p/ Gravar</span>
+              <span class="stat-val" [class.text-warning]="selectedCostCentersCount < totalImportCostCentersCount">{{ selectedCostCentersCount }} / {{ totalImportCostCentersCount }}</span>
+            </div>
+            <div class="import-stat-item stat-warning" *ngIf="importResult.unmatchedCount > 0">
+              <span class="stat-lbl">Não Identificados</span>
+              <span class="stat-val">{{ importResult.unmatchedCount }}</span>
+            </div>
+            <div class="import-stat-item stat-ambiguous" *ngIf="importResult.ambiguousCount > 0">
+              <span class="stat-lbl"><i class="fa-solid fa-triangle-exclamation text-warning"></i> Atenção (Múltiplos)</span>
+              <span class="stat-val text-warning">{{ importResult.ambiguousCount }}</span>
+            </div>
+            <div class="import-stat-item stat-total-val">
+              <span class="stat-lbl">Valor Total Selecionado</span>
+              <span class="stat-val text-success">{{ global.formatCurrency(selectedImportTotalValue) }}</span>
+            </div>
+          </div>
+
+          <div class="import-tree-toolbar">
+            <div class="toolbar-hint">
+              <i class="fa-solid fa-info-circle text-info"></i>
+              <span>Marque os centros de custo desejados e confira a estrutura antes de confirmar:</span>
+            </div>
+            <div class="tree-controls">
+              <button class="btn btn-outline btn-sm" (click)="selectAllImport(true)" title="Marcar todos os centros de custo">
+                <i class="fa-solid fa-square-check"></i> Marcar Todos
+              </button>
+              <button class="btn btn-outline btn-sm" (click)="selectAllImport(false)" title="Desmarcar todos os centros de custo">
+                <i class="fa-regular fa-square"></i> Desmarcar Todos
+              </button>
+              <button class="btn btn-outline btn-sm" (click)="expandAllImport()" title="Expandir todos os níveis">
+                <i class="fa-solid fa-angles-down"></i> Expandir Tudo
+              </button>
+              <button class="btn btn-outline btn-sm" (click)="collapseAllImport()" title="Recolher todos os níveis">
+                <i class="fa-solid fa-angles-up"></i> Recolher Tudo
+              </button>
+              <button class="btn btn-outline btn-sm" (click)="removeSelectedFile()" title="Importar outro arquivo">
+                <i class="fa-solid fa-arrow-rotate-left"></i> Trocar Planilha
+              </button>
+            </div>
+          </div>
+
+          <div class="import-table-container">
+            <table class="table tree-table">
+              <thead>
+                <tr>
+                  <th style="min-width: 440px;">
+                    <div class="header-chk-cell">
+                      <label class="custom-checkbox" (click)="$event.stopPropagation()" title="Marcar / Desmarcar Todos">
+                        <input
+                          type="checkbox"
+                          [checked]="isAllImportSelected()"
+                          [indeterminate]="isSomeImportSelected()"
+                          (change)="toggleSelectAllImport($event)"
+                        />
+                        <span class="chk-box"></span>
+                      </label>
+                      <span>Estrutura Hierárquica (Grupo &gt; SubGrupo &gt; SubCentro &gt; Centro)</span>
+                    </div>
+                  </th>
+                  <th style="width: 200px; text-align: right;">Valor da Planilha</th>
+                  <th style="min-width: 280px;">Origem na Planilha / Descrições Encontradas</th>
+                  <th style="width: 90px; text-align: right;">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  *ngFor="let item of visibleImportRows"
+                  class="tree-row"
+                  [ngClass]="[
+                    'level-' + item.level,
+                    dragOverTargetId === item.id ? 'drag-target-hover' : '',
+                    draggedItem?.id === item.id ? 'is-dragging' : '',
+                    item.type === 'costcenter' && (item.hasAmbiguity || item.rawItem?.hasAmbiguity) ? 'row-has-ambiguity' : '',
+                    item.type === 'costcenter' && !isCcSelected(item) ? 'row-unselected' : ''
+                  ]"
+                  [attr.draggable]="item.type === 'costcenter' ? 'true' : null"
+                  (dragstart)="onDragStart(item, $event, 'import')"
+                  (dragend)="onDragEnd()"
+                  (dragover)="onDragOver(item, $event, 'import')"
+                  (dragleave)="onDragLeave(item, $event)"
+                  (drop)="onDrop(item, $event, 'import')"
+                >
+
+                  <td class="name-cell" [style.padding-left.px]="item.level * 28 + 16">
+                    <div class="tree-node-wrapper">
+
+                      <label
+                        class="custom-checkbox row-chk"
+                        (click)="$event.stopPropagation()"
+                        [title]="item.type === 'costcenter' ? (isCcSelected(item) ? 'Desmarcar para não importar' : 'Marcar para importar') : (isNodeFullySelected(item) ? 'Desmarcar todos deste nível' : 'Marcar todos deste nível')"
+                      >
+                        <input
+                          type="checkbox"
+                          *ngIf="item.type === 'costcenter'"
+                          [checked]="isCcSelected(item)"
+                          (change)="toggleCcSelection(item, $event)"
+                        />
+                        <input
+                          type="checkbox"
+                          *ngIf="item.type !== 'costcenter'"
+                          [checked]="isNodeFullySelected(item)"
+                          [indeterminate]="isNodePartiallySelected(item)"
+                          (change)="toggleNodeSelection(item, $event)"
+                        />
+                        <span class="chk-box"></span>
+                      </label>
+
+                      <span
+                        *ngIf="item.type === 'costcenter'"
+                        class="drag-handle"
+                        title="Arraste para mover este item para outro Grupo ou SubGrupo"
+                      >
+                        <i class="fa-solid fa-grip-vertical"></i>
+                      </span>
+
+                      <button
+                        *ngIf="item.hasChildren"
+                        type="button"
+                        class="toggle-btn"
+                        (click)="toggleImportExpand(item); $event.stopPropagation()"
+                        [title]="isImportExpanded(item) ? 'Recolher' : 'Expandir'"
+                      >
+                        <i class="fa-solid" [ngClass]="isImportExpanded(item) ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                      </button>
+                      <span *ngIf="!item.hasChildren" class="toggle-spacer"></span>
+
+                      <span class="code-pill" [ngClass]="{
+                        'group-code': item.type === 'group',
+                        'subgroup-code': item.type === 'subgroup',
+                        'subcc-code': item.type === 'subcostcenter',
+                        'cc-code': item.type === 'costcenter'
+                      }">
+                        {{ item.code }}
+                      </span>
+
+                      <span class="type-badge" [ngClass]="'type-' + item.type">
+                        <i class="fa-solid" [ngClass]="{
+                          'fa-folder': item.type === 'group',
+                          'fa-folder-tree': item.type === 'subgroup',
+                          'fa-tags': item.type === 'subcostcenter',
+                          'fa-coins': item.type === 'costcenter'
+                        }"></i>
+                        <span class="type-text">
+                          {{ item.type === 'group' ? 'Grupo' : item.type === 'subgroup' ? 'SubGrupo' : item.type === 'subcostcenter' ? 'SubCentro' : 'Centro de Custo' }}
+                        </span>
+                      </span>
+
+                      <span class="node-name" [class.font-bold]="item.type === 'group' || item.type === 'subgroup'">
+                        {{ item.name }}
+                      </span>
+
+                      <span
+                        class="ambiguity-badge"
+                        *ngIf="item.type === 'costcenter' && (item.hasAmbiguity || item.rawItem?.hasAmbiguity)"
+                        title="Este Centro de Custo foi localizado em mais de um local no cadastro"
+                      >
+                        <i class="fa-solid fa-triangle-exclamation"></i> Múltiplos Destinos
+                      </span>
+                    </div>
+
+                    <div class="ambiguity-alert-box" *ngIf="item.type === 'costcenter' && (item.hasAmbiguity || item.rawItem?.hasAmbiguity)">
+                      <div class="ambiguity-alert-header">
+                        <i class="fa-solid fa-circle-exclamation text-warning"></i>
+                        <span>Este Centro de Custo existe em mais de um local na sua base. Alocado aqui automaticamente, confira ou troque o destino:</span>
+                      </div>
+                      <div class="ambiguity-decision-row">
+                        <span class="ambiguity-current-loc">
+                          <i class="fa-solid fa-location-dot text-primary"></i> Local atual: <strong>{{ getCurrentLocation(item) }}</strong>
+                        </span>
+
+                        <div class="ambiguity-switch-buttons" *ngIf="(item.alternativeCandidates || item.rawItem?.alternativeCandidates)?.length">
+                          <span class="switch-lbl">Outra(s) opção(ões):</span>
+                          <button
+                            *ngFor="let alt of (item.alternativeCandidates || item.rawItem?.alternativeCandidates)"
+                            type="button"
+                            class="btn-switch-dest"
+                            (click)="onSwitchDestinationClick(item, alt, $event)"
+                            title="Trocar para {{ alt.code }} - {{ alt.path }}"
+                          >
+                            <i class="fa-solid fa-arrow-right-arrow-left"></i> Trocar para: <strong>{{ alt.code }} - {{ alt.path }}</strong>
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          class="btn-dismiss-ambiguity"
+                          (click)="dismissAmbiguity(item); $event.stopPropagation()"
+                          title="Confirmar alocação no local atual"
+                        >
+                          <i class="fa-solid fa-check"></i> Manter aqui
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td class="value-cell" style="text-align: right;">
+                    <span class="value-display" [class.font-bold]="item.type === 'group' || item.type === 'subgroup'">
+                      {{ global.formatCurrency(getItemSelectedValue(item)) }}
+                    </span>
+                    <div class="original-val-hint text-muted" *ngIf="item.type === 'costcenter' && isCcPartiallySelected(item)">
+                      Total: {{ global.formatCurrency(item.value || 0) }}
+                    </div>
+                  </td>
+
+                  <td class="source-cell">
+                    <div *ngIf="item.type === 'costcenter' && (getNodeSourceLines(item).length > 0)" class="source-lines-wrapper">
+                      <div class="source-lines-toolbar" *ngIf="getNodeSourceLines(item).length > 1">
+                        <span class="source-lines-count-tag">
+                          {{ getNodeSourceLines(item).length }} itens da planilha
+                        </span>
+                        <button
+                          type="button"
+                          class="btn-split-lines"
+                          (click)="openMoveModalForLines(item, undefined, $event)"
+                          title="Escolher quais linhas mover deste Centro de Custo para outro destino"
+                        >
+                          <i class="fa-solid fa-arrows-split-up-and-left me-1"></i> Escolher linhas para mover
+                        </button>
+                      </div>
+
+                      <div class="source-tags">
+                        <div
+                          class="source-tag"
+                          *ngFor="let line of getNodeSourceLines(item)"
+                          [class.tag-selected]="isSourceLineSelected(line)"
+                          [class.tag-unselected]="!isSourceLineSelected(line)"
+                          [title]="line.description"
+                        >
+                          <label class="tag-chk-wrap" (click)="$event.stopPropagation()">
+                            <input
+                              type="checkbox"
+                              [checked]="isSourceLineSelected(line)"
+                              (change)="toggleSourceLineSelection(item, line, $event)"
+                              title="Marcar / desmarcar esta linha para importação"
+                            />
+                          </label>
+                          <span class="tag-text">
+                            <i class="fa-solid fa-quote-left"></i>
+                            {{ line.formattedText || line.description }}
+                          </span>
+                          <button
+                            type="button"
+                            class="btn-tag-move"
+                            (click)="openMoveModalForLines(item, [line], $event)"
+                            title="Mover somente esta linha da planilha para outro destino"
+                          >
+                            <i class="fa-solid fa-arrows-up-down-left-right"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <span *ngIf="item.type !== 'costcenter'" class="text-muted" style="font-size: 12px;">
+                      (Soma dos {{ item.children.length }} itens sob este nível)
+                    </span>
+                  </td>
+
+                  <td class="actions-cell" style="text-align: right;">
+                    <button
+                      *ngIf="item.type === 'costcenter'"
+                      class="btn-icon move-icon"
+                      (click)="openMoveModalForLines(item, undefined, $event)"
+                      title="Mover este item para outro Grupo ou SubGrupo"
+                    >
+                      <i class="fa-solid fa-arrows-up-down-left-right"></i>
+                    </button>
+                  </td>
+                </tr>
+
+                <tr *ngIf="visibleImportRows.length === 0">
+                  <td colspan="4" class="empty-state">
+                    <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+                    <p>Nenhum Centro de Custo foi localizado com as descrições desta planilha.</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="unmatched-section" *ngIf="importResult.unmatchedRows?.length > 0">
+            <div class="unmatched-header">
+              <i class="fa-solid fa-circle-exclamation text-warning"></i>
+              <span><strong>{{ importResult.unmatchedRows.length }}</strong> linha(s) da planilha não coincidiram com nenhum Centro de Custo existente:</span>
+            </div>
+            <div class="unmatched-list">
+              <div class="unmatched-item" *ngFor="let un of importResult.unmatchedRows; let i = index">
+                <div class="unmatched-item-main">
+                  <span class="un-desc" [title]="un.description">"{{ un.description }}"</span>
+                  <span class="un-val">{{ global.formatCurrency(un.value) }}</span>
+                  <span class="un-sim text-muted" *ngIf="un.bestMatchName">
+                    Mais próximo: <em>{{ un.bestMatchName }}</em> (similaridade: {{ (un.similarity * 100).toFixed(0) }}%)
+                  </span>
+                </div>
+                <div class="unmatched-item-actions">
+                  <button
+                    type="button"
+                    class="btn-quick-cc"
+                    *ngIf="getQuickMatchCc(un)"
+                    (click)="quickAssignCc(un, $event)"
+                    [title]="'Vincular diretamente ao Centro de Custo sugerido: ' + getQuickMatchCc(un)?.code + ' - ' + getQuickMatchCc(un)?.name"
+                  >
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>Vincular a {{ getQuickMatchCc(un)?.name }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-choose-cc"
+                    (click)="openAssignCcModal(un, i)"
+                    title="Escolher e vincular a um Centro de Custo"
+                  >
+                    <i class="fa-solid fa-link"></i>
+                    <span>Escolher Centro de Custo</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer import-modal-footer">
+        <button class="btn btn-outline" (click)="closeImportModal()" [disabled]="isImporting || isConfirmingImport">
+          Cancelar
+        </button>
+
+        <button
+          class="btn btn-primary"
+          (click)="submitImport()"
+          [disabled]="!selectedFile || isImporting"
+          *ngIf="!importResult"
+        >
+          <i class="fa-solid fa-spinner fa-spin" *ngIf="isImporting"></i>
+          {{ isImporting ? 'Processando Planilha...' : 'Analisar e Conferir Planilha' }}
+        </button>
+
+        <button
+          class="btn btn-success"
+          (click)="openConfirmImportModal()"
+          [disabled]="selectedCostCentersCount === 0 || isConfirmingImport"
+          *ngIf="importResult"
+        >
+          <i class="fa-solid fa-check-double"></i>
+          Confirmar Importação ({{ selectedCostCentersCount }} Centros)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop confirm-backdrop" *ngIf="isConfirmImportModalOpen" (click)="closeConfirmImportModal()">
+    <div class="modal-card confirm-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title text-success">
+          <i class="fa-solid fa-circle-check"></i>
+          Confirmar Aplicação da Importação
+        </h2>
+        <button class="btn-close" (click)="closeConfirmImportModal()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p>Você conferiu a estrutura e deseja realmente aplicar a importação?</p>
+
+        <div class="confirm-summary-box">
+          <div class="summary-row">
+            <span>Centros de Custo a atualizar:</span>
+            <strong>{{ selectedCostCentersCount }} de {{ totalImportCostCentersCount }} itens selecionados</strong>
+          </div>
+          <div class="summary-row">
+            <span>Valor total a ser gravado:</span>
+            <strong class="text-success" style="font-size: 16px;">{{ global.formatCurrency(selectedImportTotalValue) }}</strong>
+          </div>
+        </div>
+
+        <p class="text-muted" style="font-size: 13px; margin-top: 10px;">
+          Os valores dos Centros de Custo identificados na planilha serão atualizados no banco de dados com a data e hora atuais.
+        </p>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="closeConfirmImportModal()" [disabled]="isConfirmingImport">
+          Voltar à Conferência
+        </button>
+        <button class="btn btn-success" (click)="executeConfirmImport()" [disabled]="isConfirmingImport">
+          <i class="fa-solid fa-spinner fa-spin" *ngIf="isConfirmingImport"></i>
+          {{ isConfirmingImport ? 'Aplicando Importação...' : 'Sim, Aplicar Importação' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop move-backdrop" *ngIf="isMoveModalOpen" (click)="closeMoveModal()">
+    <div class="modal-card move-modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">
+          <i class="fa-solid fa-arrows-up-down-left-right" style="color: #38bdf8;"></i>
+          Mover Centro de Custo
+        </h2>
+        <button class="btn-close" (click)="closeMoveModal()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="move-context-pill" *ngIf="moveContext === 'import'">
+          <i class="fa-solid fa-file-excel"></i>
+          <span>Modo Importação: Reorganizando alocação da planilha antes de confirmar</span>
+        </div>
+
+        <p class="move-instruction">
+          Selecione o novo destino hierárquico para o item:
+        </p>
+
+        <div class="move-item-banner">
+          <span class="banner-pill cc-code">{{ itemToMove?.code }}</span>
+          <strong class="banner-name">{{ itemToMove?.name }}</strong>
+        </div>
+
+        <div class="move-lines-section" *ngIf="moveContext === 'import' && itemToMove?.sourceLines && itemToMove!.sourceLines!.length > 0">
+          <div class="move-lines-header">
+            <span class="move-lines-title">
+              <i class="fa-solid fa-list-check"></i>
+              Linhas da Planilha a Transferir:
+            </span>
+            <div class="move-lines-actions">
+              <button type="button" class="btn-link-sm" (click)="toggleAllMoveLines($event)">
+                {{ isAllMoveLinesSelected ? 'Desmarcar Todas' : 'Marcar Todas' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="move-lines-list">
+            <label class="move-line-item" *ngFor="let line of itemToMove!.sourceLines" [class.line-checked]="moveSelectedLineIds.has(line.id)">
+              <input type="checkbox"
+                     [checked]="moveSelectedLineIds.has(line.id)"
+                     (change)="toggleMoveLineSelection(line)" />
+              <span class="move-line-desc">{{ line.description }}</span>
+              <span class="move-line-val">{{ global.formatCurrency(line.value) }}</span>
+            </label>
+          </div>
+
+          <div class="move-lines-summary-tip">
+            Selecionadas: <strong>{{ selectedMoveLinesCount }}</strong> de <strong>{{ itemToMove!.sourceLines!.length }}</strong> linha(s)
+            &bull; Subtotal: <strong>{{ global.formatCurrency(selectedMoveLinesTotalValue) }}</strong>
+          </div>
+        </div>
+
+        <div class="move-form-grid">
+          <div class="form-group">
+            <label class="form-label">Grupo de Destino *</label>
+            <select class="form-control" [(ngModel)]="moveTargetGroup" (change)="onMoveTargetGroupChange()">
+              <option value="" disabled>Selecione um Grupo</option>
+              <option *ngFor="let g of allGroups" [value]="g.code">{{ g.code }} - {{ g.name }}</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">SubGrupo de Destino *</label>
+            <select class="form-control" [(ngModel)]="moveTargetSubGroup" (change)="onMoveTargetSubGroupChange()" [disabled]="!moveTargetGroup">
+              <option value="" disabled>Selecione um SubGrupo</option>
+              <option *ngFor="let sg of filteredMoveSubGroups" [value]="sg.code">{{ sg.code }} - {{ sg.name }}</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-top: 4px;">
+            <label class="form-checkbox">
+              <input type="checkbox" [(ngModel)]="moveHasSubCostCenter" (change)="onMoveHasSubCostCenterChange()" />
+              <span>Vincular a um <strong>SubCentro de Custo</strong> (opcional)?</span>
+            </label>
+          </div>
+
+          <div class="form-group" *ngIf="moveHasSubCostCenter">
+            <label class="form-label">SubCentro de Destino *</label>
+            <select class="form-control" [(ngModel)]="moveTargetSubCostCenter" (change)="updateMovePreviewCode()">
+              <option value="" disabled>Selecione um SubCentro</option>
+              <option *ngFor="let scc of filteredMoveSubCostCenters" [value]="scc.code">{{ scc.code }} - {{ scc.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="move-comparison-card" *ngIf="moveTargetSubGroup">
+          <div class="comparison-col origin-col">
+            <span class="comp-label">ORIGEM</span>
+            <span class="comp-code">{{ itemToMove?.code }}</span>
+            <span class="comp-name">{{ itemToMove?.name }}</span>
+          </div>
+
+          <div class="comparison-arrow">
+            <i class="fa-solid fa-arrow-right-long"></i>
+          </div>
+
+          <div class="comparison-col target-col">
+            <span class="comp-label">NOVO DESTINO</span>
+            <span class="comp-code text-success" *ngIf="!isLoadingMovePreview">
+              <i class="fa-solid fa-tag"></i> {{ suggestedMoveCode || 'Automático' }}
+            </span>
+            <span class="comp-code text-muted" *ngIf="isLoadingMovePreview">
+              <i class="fa-solid fa-spinner fa-spin"></i> Calculando...
+            </span>
+            <span class="comp-destination-path">{{ getMoveDestinationDescription() }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="closeMoveModal()" [disabled]="isMoving">Cancelar</button>
+        <button class="btn btn-primary" (click)="executeMove()" [disabled]="!isMoveValid() || isMoving || (moveContext === 'import' && selectedMoveLinesCount === 0)">
+          <i class="fa-solid fa-spinner fa-spin" *ngIf="isMoving"></i>
+          {{ isMoving ? 'Transferindo...' : (moveContext === 'import' && itemToMove?.sourceLines && itemToMove!.sourceLines!.length > 1 ? 'Confirmar Transferência (' + selectedMoveLinesCount + ' linha' + (selectedMoveLinesCount > 1 ? 's' : '') + ')' : 'Confirmar Transferência') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" *ngIf="isHistoryModalOpen" (click)="closeHistoryModal()">
+    <div class="modal-card history-modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="header-with-back" *ngIf="selectedHistory">
+          <button class="btn btn-sm btn-outline btn-back-link" (click)="backToHistoryList()" title="Voltar à lista">
+            <i class="fa-solid fa-arrow-left"></i>
+          </button>
+          <div class="modal-title-wrap">
+            <h2 class="modal-title">Detalhes da Importação</h2>
+            <span class="modal-subtitle">{{ selectedHistory.fileName }} &bull; {{ global.formatDateTime(selectedHistory.createdAt) }}</span>
+          </div>
+        </div>
+        <div class="modal-title-wrap" *ngIf="!selectedHistory">
+          <h2 class="modal-title">
+            <i class="fa-solid fa-clock-rotate-left text-primary me-2"></i>
+            Histórico de Importações
+          </h2>
+          <span class="modal-subtitle">Registro de planilhas importadas e auditoria detalhada de cada linha</span>
+        </div>
+        <button class="btn-close" (click)="closeHistoryModal()" aria-label="Fechar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body history-modal-body">
+
+        <ng-container *ngIf="!selectedHistory">
+          <div *ngIf="isLoadingHistory" class="text-center py-5">
+            <i class="fa-solid fa-spinner fa-spin fa-2x text-primary"></i>
+            <p class="mt-2 text-muted">Carregando histórico de importações...</p>
+          </div>
+
+          <div *ngIf="!isLoadingHistory && historyList.length === 0" class="history-empty-state">
+            <i class="fa-solid fa-folder-open empty-icon"></i>
+            <h3>Nenhum histórico encontrado</h3>
+            <p>Quando você confirmar a importação de planilhas, cada registro e suas linhas aparecerão aqui.</p>
+          </div>
+
+          <div *ngIf="!isLoadingHistory && historyList.length > 0" class="table-responsive history-table-wrap">
+            <table class="table history-table">
+              <thead>
+                <tr>
+                  <th>Data / Hora</th>
+                  <th>Arquivo</th>
+                  <th>Usuário</th>
+                  <th class="text-center">Linhas</th>
+                  <th class="text-center">Centros de Custo</th>
+                  <th class="text-right">Valor Total</th>
+                  <th class="text-center">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let hist of historyList" class="history-row">
+                  <td class="history-date">
+                    <i class="fa-regular fa-calendar me-1 text-muted"></i>
+                    {{ global.formatDateTime(hist.importedAt || hist.createdAt) }}
+                  </td>
+                  <td class="history-filename">
+                    <i class="fa-solid fa-file-excel text-success me-1"></i>
+                    <strong>{{ hist.fileName }}</strong>
+                  </td>
+                  <td class="history-user">
+                    <i class="fa-regular fa-user me-1 text-muted"></i>
+                    {{ hist.importedByName || hist.userName || 'Usuário' }}
+                  </td>
+                  <td class="text-center">
+                    <span class="badge badge-subgroup">{{ hist.totalRows }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge badge-group">{{ hist.matchedCount }}</span>
+                  </td>
+                  <td class="text-right fw-bold text-success">
+                    {{ global.formatCurrency(hist.totalValue) }}
+                  </td>
+                  <td class="text-center">
+                    <div class="history-actions-cell">
+                      <button class="btn btn-sm btn-outline-primary btn-view-history" (click)="viewHistoryDetail(hist)" title="Ver linhas detalhadas">
+                        <i class="fa-solid fa-list-check me-1"></i> Ver Linhas
+                      </button>
+                      <button class="btn btn-sm btn-outline-danger btn-delete-history" (click)="openDeleteHistoryModal(hist, $event)" title="Excluir importação e estornar valores">
+                        <i class="fa-solid fa-trash-can"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="selectedHistory">
+
+          <div class="history-detail-summary">
+            <div class="summary-metric">
+              <span class="metric-label">Arquivo:</span>
+              <span class="metric-value">{{ selectedHistory.fileName }}</span>
+            </div>
+            <div class="summary-metric">
+              <span class="metric-label">Importado Por:</span>
+              <span class="metric-value">{{ selectedHistory.importedByName || selectedHistory.userName || 'Usuário' }}</span>
+            </div>
+            <div class="summary-metric">
+              <span class="metric-label">Data:</span>
+              <span class="metric-value">{{ global.formatDateTime(selectedHistory.importedAt || selectedHistory.createdAt) }}</span>
+            </div>
+            <div class="summary-metric">
+              <span class="metric-label">Total de Linhas:</span>
+              <span class="metric-value badge badge-subgroup">{{ selectedHistory.totalRows }}</span>
+            </div>
+            <div class="summary-metric">
+              <span class="metric-label">Centros de Custo:</span>
+              <span class="metric-value badge badge-group">{{ selectedHistory.matchedCount }}</span>
+            </div>
+            <div class="summary-metric">
+              <span class="metric-label">Valor Total:</span>
+              <span class="metric-value fw-bold text-success">{{ global.formatCurrency(selectedHistory.totalValue) }}</span>
+            </div>
+            <button class="btn btn-sm btn-outline-danger ms-auto btn-revert-import" (click)="openDeleteHistoryModal(selectedHistory, $event)" title="Excluir importação e estornar valores">
+              <i class="fa-solid fa-trash-can me-1"></i> Excluir e Estornar
+            </button>
+          </div>
+
+          <div class="history-detail-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Filtrar por código, centro de custo, descrição original da planilha..."
+              [(ngModel)]="historySearchQuery"
+            />
+            <span class="lines-count-tag" *ngIf="selectedHistory.items">
+              {{ filteredHistoryLines.length }} de {{ selectedHistory.items.length }} linhas
+            </span>
+          </div>
+
+          <div *ngIf="isLoadingHistoryDetail" class="text-center py-4">
+            <i class="fa-solid fa-spinner fa-spin fa-2x text-primary"></i>
+            <p class="mt-2 text-muted">Carregando detalhes das linhas...</p>
+          </div>
+
+          <div *ngIf="!isLoadingHistoryDetail && filteredHistoryLines.length === 0" class="empty-lines-state">
+            <p class="text-muted text-center py-3">Nenhuma linha encontrada para o filtro informado.</p>
+          </div>
+
+          <div *ngIf="!isLoadingHistoryDetail && filteredHistoryLines.length > 0" class="table-responsive history-lines-table-wrap">
+            <table class="table history-lines-table">
+              <thead>
+                <tr>
+                  <th style="width: 130px;">Código CC</th>
+                  <th>Centro de Custo</th>
+                  <th>Hierarquia de Destino</th>
+                  <th>Descrição Original na Planilha</th>
+                  <th class="text-right" style="width: 140px;">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let line of filteredHistoryLines">
+                  <td>
+                    <span class="badge badge-code">{{ line.costCenterCode }}</span>
+                  </td>
+                  <td class="fw-semibold">
+                    {{ line.costCenterName }}
+                  </td>
+                  <td class="text-muted small">
+                    <i class="fa-solid fa-sitemap me-1 text-primary"></i>
+                    {{ line.hierarchyPath || '-' }}
+                  </td>
+                  <td class="source-desc-cell">
+                    <span class="source-badge">
+                      <i class="fa-solid fa-file-lines me-1 text-secondary"></i>
+                      {{ line.sourceDescription || '-' }}
+                    </span>
+                  </td>
+                  <td class="text-right fw-bold text-success">
+                    {{ global.formatCurrency(line.value) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </ng-container>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" *ngIf="selectedHistory" (click)="backToHistoryList()">
+          <i class="fa-solid fa-arrow-left me-1"></i> Voltar à Lista
+        </button>
+        <button class="btn btn-primary" (click)="closeHistoryModal()">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop confirm-backdrop" *ngIf="isConfirmDeleteHistoryModalOpen" (click)="closeDeleteHistoryModal()">
+    <div class="modal-card delete-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title text-danger">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          Excluir Importação
+        </h2>
+        <button class="btn-close" (click)="closeDeleteHistoryModal()" [disabled]="isDeletingHistory">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Tem certeza que deseja remover esta importação?</p>
+        <div class="delete-info-box">
+          <p class="mb-1"><strong>Arquivo:</strong> {{ itemHistoryToDelete?.fileName }}</p>
+          <p class="mb-1"><strong>Data:</strong> {{ global.formatDateTime(itemHistoryToDelete?.importedAt || itemHistoryToDelete?.createdAt) }}</p>
+          <p class="mb-0"><strong>Valor Total:</strong> {{ global.formatCurrency(itemHistoryToDelete?.totalValue) }}</p>
+        </div>
+        <p class="text-danger" style="font-size: 13px; margin-top: 10px;">
+          <i class="fa-solid fa-triangle-exclamation me-1"></i>
+          Esta ação excluirá o histórico desta importação e <strong>estornará automaticamente os valores</strong> que foram adicionados aos Centros de Custo correspondentes.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="closeDeleteHistoryModal()" [disabled]="isDeletingHistory">Cancelar</button>
+        <button class="btn btn-danger" (click)="executeDeleteHistory()" [disabled]="isDeletingHistory">
+          <i class="fa-solid fa-spinner fa-spin me-1" *ngIf="isDeletingHistory"></i>
+          {{ isDeletingHistory ? 'Excluindo e estornando...' : 'Excluir e Estornar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop assign-backdrop" *ngIf="isAssignCcModalOpen" (click)="closeAssignCcModal()">
+    <div class="modal-card assign-cc-modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">
+          <i class="fa-solid fa-link" style="color: #f59e0b;"></i>
+          Vincular Linha ao Centro de Custo
+        </h2>
+        <button class="btn-close" (click)="closeAssignCcModal()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="assign-unmatched-banner">
+          <div class="assign-banner-row">
+            <span class="assign-banner-label">Descrição na Planilha:</span>
+            <strong class="assign-banner-desc">"{{ selectedUnmatchedRow?.description }}"</strong>
+          </div>
+          <div class="assign-banner-row">
+            <span class="assign-banner-label">Valor:</span>
+            <span class="assign-banner-val">{{ global.formatCurrency(selectedUnmatchedRow?.value || 0) }}</span>
+            <span class="assign-banner-sim text-muted" *ngIf="selectedUnmatchedRow?.bestMatchName">
+              (Mais próximo identificado: <em>{{ selectedUnmatchedRow.bestMatchName }}</em>)
+            </span>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 16px;">
+          <label class="form-label">
+            Pesquisar Centro de Custo
+          </label>
+          <div class="search-input-wrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Digite o código ou nome do Centro de Custo..."
+              [(ngModel)]="assignCcSearchQuery"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            Selecione o Centro de Custo de Destino *
+          </label>
+          <div class="assign-cc-list-container">
+            <div
+              class="assign-cc-option"
+              *ngFor="let cc of filteredAssignCostCenters"
+              [class.selected]="assignTargetCostCenterId === cc.id"
+              (click)="assignTargetCostCenterId = cc.id"
+            >
+              <div class="assign-cc-radio">
+                <input
+                  type="radio"
+                  name="assignCcOption"
+                  [value]="cc.id"
+                  [(ngModel)]="assignTargetCostCenterId"
+                />
+              </div>
+              <div class="assign-cc-info">
+                <div class="assign-cc-title">
+                  <span class="badge badge-code">{{ cc.code }}</span>
+                  <strong class="assign-cc-name">{{ cc.name }}</strong>
+                </div>
+                <div class="assign-cc-hierarchy text-muted">
+                  <i class="fa-solid fa-sitemap me-1 text-primary"></i>
+                  {{ getCostCenterHierarchyPath(cc) }}
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="filteredAssignCostCenters.length === 0" class="text-center py-4 text-muted">
+              <i class="fa-solid fa-folder-open mb-2" style="font-size: 24px; opacity: 0.5;"></i>
+              <p>Nenhum Centro de Custo encontrado com o termo pesquisado.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="assign-selection-preview" *ngIf="selectedTargetCostCenter">
+          <div class="selection-preview-header">
+            <i class="fa-solid fa-circle-check text-success"></i>
+            <span>Centro de Custo Selecionado:</span>
+          </div>
+          <div class="selection-preview-body">
+            <span class="badge badge-code">{{ selectedTargetCostCenter.code }}</span>
+            <strong class="text-white">{{ selectedTargetCostCenter.name }}</strong>
+            <span class="preview-path text-muted">({{ getCostCenterHierarchyPath(selectedTargetCostCenter) }})</span>
+          </div>
+        </div>
+
+        <div class="form-group mt-3" *ngIf="selectedUnmatchedSameDescCount > 1">
+          <label class="form-checkbox">
+            <input type="checkbox" [(ngModel)]="assignApplyToSameDescription" />
+            <span>
+              Aplicar este Centro de Custo a todas as <strong>{{ selectedUnmatchedSameDescCount }}</strong> linhas da planilha com a mesma descrição
+              ("<em>{{ selectedUnmatchedRow?.description }}</em>")
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="closeAssignCcModal()">
+          Cancelar
+        </button>
+        <button
+          class="btn btn-primary"
+          [disabled]="!assignTargetCostCenterId"
+          (click)="confirmAssignCc()"
+        >
+          <i class="fa-solid fa-check me-1"></i>
+          Confirmar Vínculo
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -149,6 +149,34 @@
   color: var(--text-muted, #94a3b8);
 }
 
+/* ===================== AÇÕES DE FOTO (câmera / galeria) ===================== */
+.dropzone-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+  width: 100%;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .dropzone-actions {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  .dropzone-actions .btn-action {
+    width: 100%;
+  }
+}
+
 /* ===================== PREVIEW + SCAN ===================== */
 .preview {
   position: relative;
@@ -525,6 +553,7 @@
   }
 }
 
+/* ===================== VISIBILIDADE POR DISPOSITIVO ===================== */
 .mobile-only {
   display: none;
 }

@@ -12,19 +12,52 @@
     <section class="card photo-card">
       <div class="card-head">
         <h2 class="card-title"><i class="fa-solid fa-camera"></i> Foto</h2>
-        <button *ngIf="previewUrl && !lendo" type="button" class="btn-action ghost small" (click)="fileInput.click()">
-          <i class="fa-solid fa-rotate"></i> Trocar foto
-        </button>
+        <div *ngIf="previewUrl && !lendo" class="header-actions mobile-only">
+          <button type="button" class="btn-action ghost small" (click)="cameraInput.click()" aria-label="Tirar nova foto">
+            <i class="fa-solid fa-camera"></i>
+          </button>
+          <button type="button" class="btn-action ghost small" (click)="galleryInput.click()" aria-label="Escolher da galeria">
+            <i class="fa-solid fa-images"></i>
+          </button>
+        </div>
+        <div *ngIf="previewUrl && !lendo" class="header-actions desktop-only">
+          <button type="button" class="btn-action ghost small" (click)="galleryInput.click()" aria-label="Trocar arquivo">
+            <i class="fa-solid fa-rotate"></i>
+          </button>
+        </div>
       </div>
 
-      <input #fileInput type="file" accept="image/*" hidden (change)="onFileSelected($event)" />
+      <!-- Input dedicado à câmera: capture="environment" abre a câmera traseira direto no mobile.
+           No desktop, navegadores ignoram o "capture" e caem no seletor de arquivo normal. -->
+      <input #cameraInput type="file" accept="image/*" capture="environment" hidden (change)="onFileSelected($event)" />
+
+      <!-- Input dedicado à galeria/arquivos, sem "capture". -->
+      <input #galleryInput type="file" accept="image/*" hidden (change)="onFileSelected($event)" />
 
       <div *ngIf="!previewUrl" class="dropzone" [class.dragging]="dragging" tabindex="0" role="button"
-        (click)="fileInput.click()" (keydown.enter)="fileInput.click()" (dragover)="onDragOver($event)"
-        (dragleave)="dragging = false" (drop)="onDrop($event)">
+        (dragover)="onDragOver($event)" (dragleave)="dragging = false" (drop)="onDrop($event)">
         <span class="dropzone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
-        <strong>Arraste a foto aqui ou clique para enviar</strong>
+        <strong>Envie a foto do relatório</strong>
         <span class="dropzone-sub">JPG ou PNG · até 10 MB</span>
+
+        <!-- Mobile/tablet: câmera traseira direta + galeria -->
+        <div class="dropzone-actions mobile-only">
+          <button type="button" class="btn-action primary" (click)="cameraInput.click()">
+            <i class="fa-solid fa-camera"></i> Tirar foto
+          </button>
+          <button type="button" class="btn-action ghost" (click)="galleryInput.click()">
+            <i class="fa-solid fa-images"></i> Escolher da galeria
+          </button>
+        </div>
+
+        <!-- Desktop: só o seletor de arquivo, sem opção de câmera -->
+        <div class="dropzone-actions desktop-only">
+          <button type="button" class="btn-action primary" (click)="galleryInput.click()">
+            <i class="fa-solid fa-folder-open"></i> Selecionar arquivo
+          </button>
+        </div>
+
+        <span class="dropzone-sub desktop-hint">Ou arraste a foto aqui</span>
       </div>
 
       <div *ngIf="previewUrl" class="preview">
